@@ -22,6 +22,9 @@ class HandDetector:
         threading.Thread(target=self._capture, daemon=True).start()
 
     def _capture(self):
+        mp_draw = mp.solutions.drawing_utils
+        mp_styles = mp.solutions.drawing_styles
+
         while self.running:
             ret, frame = self.cap.read()
             if not ret:
@@ -45,6 +48,39 @@ class HandDetector:
                     distance = ((index_x - thumb_x)**2 + (index_y - thumb_y)**2) ** 0.5
                     if distance < 50:
                         self.fist_closed = True
+
+                    # Draw landmarks & connections on the frame
+                    mp_draw.draw_landmarks(
+                        frame,
+                        hand_landmarks,
+                        self.mp_hands.HAND_CONNECTIONS,
+                        mp_draw.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=2),
+                        mp_draw.DrawingSpec(color=(255,0,0), thickness=2)
+                    )
+
+            # Show status text on the frame
+            if self.fist_closed:
+                cv2.putText(
+                    frame,
+                    "Jumping!",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0,0,255),
+                    2,
+                    cv2.LINE_AA
+                )
+            else:
+                cv2.putText(
+                    frame,
+                    "Open Hand",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0,255,0),
+                    2,
+                    cv2.LINE_AA
+                )
 
             cv2.imshow("Hand Detection - Press ESC to Quit", frame)
             if cv2.waitKey(1) & 0xFF == 27:
@@ -227,3 +263,4 @@ if __name__ == "__main__":
     detector = HandDetector()
     detector.start()
     run_game(detector)
+
