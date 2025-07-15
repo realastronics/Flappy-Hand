@@ -4,9 +4,9 @@ import pygame
 import sys
 import threading
 import time
-import config 
+import config
 
-# Jump Detector Class using finger motion
+# Jump Detector Class
 class HandDetector:
     def __init__(self, detection_confidence=0.7):
         self.mp_hands = mp.solutions.hands
@@ -43,10 +43,9 @@ class HandDetector:
                     thumb_x, thumb_y = int(thumb_tip.x * w), int(thumb_tip.y * h)
 
                     distance = ((index_x - thumb_x)**2 + (index_y - thumb_y)**2) ** 0.5
-                    if distance < 50:  # Less strict threshold
+                    if distance < 50:
                         self.fist_closed = True
 
-            # Show window for debug; comment out for faster detection
             cv2.imshow("Hand Detection - Press ESC to Quit", frame)
             if cv2.waitKey(1) & 0xFF == 27:
                 self.running = False
@@ -56,8 +55,6 @@ class HandDetector:
         cv2.destroyAllWindows()
 
 
-# Game Constants are to be taken from conig ;)
-
 # Main Game Function
 def run_game(detector):
     pygame.init()
@@ -65,19 +62,34 @@ def run_game(detector):
     clock = pygame.time.Clock()
     font = pygame.font.SysFont(None, 48)
     small_font = pygame.font.SysFont(None, 32)
-# Load ACM Logo
-    import os 
-    try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))  # This script's folder
-        logo_path = os.path.join(script_dir, "acm_logo.png")     # Path inside same folder
 
-        logo_image = pygame.image.load(logo_path).convert_alpha()
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Load ACM Logo
+    try:
+        logo_image = pygame.image.load(os.path.join(script_dir, "acm_logo.png")).convert_alpha()
         logo_image = pygame.transform.scale(logo_image, (150, 150))
-        logo_image.set_alpha(120)  # More visible
-        print("Logo image loaded successfully from:", logo_path)
+        logo_image.set_alpha(150)
     except Exception as e:
         print("Error loading ACM logo:", e)
         logo_image = None
+
+    # Load Bird Image
+    try:
+        bird_image = pygame.image.load(os.path.join(script_dir, "duck.jpg")).convert_alpha()
+        bird_image = pygame.transform.scale(bird_image, (50, 50))
+    except Exception as e:
+        print("Error loading duck image:", e)
+        bird_image = None
+
+    # Load Background Image
+    try:
+        bg_image = pygame.image.load(os.path.join(script_dir, "background_space.jpg")).convert()
+        bg_image = pygame.transform.scale(bg_image, (config.WIDTH, config.HEIGHT))
+    except Exception as e:
+        print("Error loading background image:", e)
+        bg_image = None
 
     bird_y = config.HEIGHT // 2
     bird_vel = 0
@@ -91,24 +103,25 @@ def run_game(detector):
     game_over = False
 
     while running and detector.running:
-        # Handle events
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
                 running = False
                 detector.running = False
 
-        # Intro screen
+        # Intro Screen
         if not game_started:
             for event in events:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     game_started = True
                     start_time = time.time()
 
-            screen.fill((50,50,50))
+            screen.fill(config.BACKGROUND_COLOR)
+            if bg_image:
+                screen.blit(bg_image, (0,0))
             if logo_image:
                 screen.blit(logo_image, (config.WIDTH//2 - logo_image.get_width()//2, config.HEIGHT//3 - 80))
-            title = font.render("Flappy Bird Hand Control", True, (255,255,255))
+            title = font.render("Flappy Duck in Space", True, (255,255,255))
             prompt = small_font.render("Press Space to Start", True, (200,200,200))
             screen.blit(title, (config.WIDTH//2 - title.get_width()//2, config.HEIGHT//2))
             screen.blit(prompt, (config.WIDTH//2 - prompt.get_width()//2, config.HEIGHT//2 + 40))
@@ -116,29 +129,31 @@ def run_game(detector):
             clock.tick(60)
             continue
 
-        # Countdown before starting
+        # Countdown
         if time.time() - start_time < 3 and not game_over:
-            screen.fill((50,50,50))
+            screen.fill(config.BACKGROUND_COLOR)
+            if bg_image:
+                screen.blit(bg_image, (0,0))
             countdown = font.render(f"Starting in {3 - int(time.time()-start_time)}", True, (255,255,255))
             screen.blit(countdown, (config.WIDTH//2 - countdown.get_width()//2, config.HEIGHT//2))
             pygame.display.flip()
             clock.tick(60)
             continue
 
-        # If game over
+        # Game Over Screen
         if game_over:
             for event in events:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    # Reset game state
                     bird_y = config.HEIGHT // 2
                     bird_vel = 0
                     score = 0
                     pipes = [{'x': config.WIDTH + 100, 'height': 200}]
                     game_over = False
-                    # Skip countdown
                     start_time = time.time() - 3
 
-            screen.fill((50,50,50))
+            screen.fill(config.BACKGROUND_COLOR)
+            if bg_image:
+                screen.blit(bg_image, (0,0))
             over_text = font.render("Game Over", True, (200,0,0))
             score_text = small_font.render(f"Score: {score//30}", True, (255,255,255))
             prompt = small_font.render("Press Space to Restart", True, (200,200,200))
@@ -149,26 +164,23 @@ def run_game(detector):
             clock.tick(60)
             continue
 
-        # Bird physics
+        # Bird Physics
         bird_vel += config.GRAVITY
         bird_y += bird_vel
 
         if detector.fist_closed:
             bird_vel = config.JUMP_STRENGTH
 
-        # Move pipes
+        # Move Pipes
         for pipe in pipes:
             pipe['x'] -= pipe_speed
 
-        # Add new pipes
         if pipes[-1]['x'] < config.WIDTH - 200:
             from random import randint
             pipes.append({'x': config.WIDTH, 'height': randint(100, 400)})
 
-        # Remove off-screen pipes
         pipes = [pipe for pipe in pipes if pipe['x'] > -config.PIPE_WIDTH]
 
-        # Collision detection
         for pipe in pipes:
             if pipe['x'] < 50 < pipe['x'] + config.PIPE_WIDTH:
                 if bird_y < pipe['height'] or bird_y > pipe['height'] + config.PIPE_GAP:
@@ -177,30 +189,40 @@ def run_game(detector):
         if bird_y > config.HEIGHT or bird_y < 0:
             game_over = True
 
-        # Draw everything
-        screen.fill((50,50,50))
+        # Draw Everything
+        if bg_image:
+            screen.blit(bg_image, (0,0))
+        else:
+            screen.fill(config.BACKGROUND_COLOR)
 
         if logo_image:
-            screen.blit(logo_image, (config.WIDTH - logo_image.get_width() - 10, config.HEIGHT - logo_image.get_height() -10))
+            screen.blit(logo_image, (config.WIDTH//2 - logo_image.get_width()//2, 10))
 
         for pipe in pipes:
-            pygame.draw.rect(screen, (102,0,153), (pipe['x'], 0, config.PIPE_WIDTH, pipe['height']))
-            pygame.draw.rect(screen, (153,50,204), (pipe['x'], pipe['height'] + config.PIPE_GAP, config.PIPE_WIDTH, config.HEIGHT))
+            pygame.draw.rect(screen, config.PIPE_COLOR_TOP, (pipe['x'], 0, config.PIPE_WIDTH, pipe['height']))
+            pygame.draw.rect(screen, config.PIPE_COLOR_BOTTOM, (pipe['x'], pipe['height'] + config.PIPE_GAP, config.PIPE_WIDTH, config.HEIGHT))
 
-        pygame.draw.circle(screen, (255,255,0), (50, int(bird_y)), 15)
+        if bird_image:
+            screen.blit(bird_image, (50-25, int(bird_y)-25))
+        else:
+            pygame.draw.circle(screen, config.BIRD_COLOR, (50, int(bird_y)), 15)
 
         score += 1
         score_text = font.render(str(score//30), True, (255,255,255))
         screen.blit(score_text, (config.WIDTH//2 - score_text.get_width()//2, 20))
+        
+                # Draw ACM BMU text at bottom left
+        acm_text = small_font.render("ACM BMU", True, (255, 255, 255))
+        screen.blit(acm_text, (10, config.HEIGHT - acm_text.get_height() - 10))
 
         pygame.display.flip()
         clock.tick(60)
+
 
     pygame.quit()
     sys.exit()
 
 
-# Main Entry
 if __name__ == "__main__":
     detector = HandDetector()
     detector.start()
