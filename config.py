@@ -2,7 +2,7 @@
 # they can change things
 
 # Physics
-GRAVITY = 0.3 # increase the magnitude for quicker falls
+GRAVITY = 0.4 # increase the magnitude for quicker falls
 JUMP_STRENGTH = -6 # increase the magnitude for heigher jumps
 
 # Pipe settings
