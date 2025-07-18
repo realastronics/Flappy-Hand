@@ -19,4 +19,4 @@ things work by changing the constants in the config.py file.
 4. Install dependencies: pygame, opencv-python, mediapipe
 5. Run the game
 
--made by Parth Sharma 
+-made by a lot of Vibe Coding and Parth Sharma
